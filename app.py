@@ -3,7 +3,7 @@ from PIL import Image
 import pandas as pd
 import requests
 from io import BytesIO
-import openai  # For generative AI features
+import google.generativeai as genai
 
 # Set page config
 st.set_page_config(
@@ -18,16 +18,14 @@ profile_pic_url = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?
 response = requests.get(profile_pic_url)
 profile_pic = Image.open(BytesIO(response.content))
 
-# AI Configuration (optional - remove if not using OpenAI)
-# openai.api_key = st.secrets["openai_key"]  # You'll need to set this up in Streamlit secrets
+# Initialize Gemini (will only load if used in AI Chat section)
+if "gemini_model" not in st.session_state:
+    st.session_state.gemini_model = None
 
 # CSS for styling
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Load custom CSS
-local_css("style.css")  # Create a style.css file with the CSS from below
 
 # Header Section
 col1, col2 = st.columns([1, 2])
@@ -55,7 +53,7 @@ with col2:
 st.markdown("---")
 st.sidebar.title("Navigation")
 section = st.sidebar.radio("Go to", 
-                          ["About", "Skills", "Projects", "Experience", "Education", "Certifications", "AI Chat"])
+                         ["About", "Skills", "Projects", "Experience", "Education", "Certifications", "AI Chat"])
 
 # About Section
 if section == "About":
@@ -332,15 +330,18 @@ elif section == "Certifications":
           *Skills Gained*: Python programming, OOP concepts
         """)
 
-# AI Chat Section (Optional - requires OpenAI API key)
+# AI Chat Section (Gemini Version)
 elif section == "AI Chat":
     st.header("Ask AI About My Profile")
-    st.info("This feature uses AI to answer questions about my skills, experience, and projects.")
+    st.info("This feature uses Google's Gemini AI to answer questions about my skills, experience, and projects.")
     
-    if "openai_key" not in st.secrets:
-        st.warning("Please set up your OpenAI API key in Streamlit secrets to use this feature.")
+    if "gemini_key" not in st.secrets:
+        st.warning("Please set up your Gemini API key in Streamlit secrets to use this feature.")
     else:
-        openai.api_key = st.secrets["openai_key"]
+        # Initialize Gemini model
+        if st.session_state.gemini_model is None:
+            genai.configure(api_key=st.secrets["gemini_key"])
+            st.session_state.gemini_model = genai.GenerativeModel('gemini-pro')
         
         # Initialize chat history
         if "messages" not in st.session_state:
@@ -348,20 +349,19 @@ elif section == "AI Chat":
                 {"role": "assistant", "content": "Hi! I can answer questions about Smit Patel's professional profile. What would you like to know?"}
             ]
         
-        # Display chat messages from history on app rerun
+        # Display chat messages
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
         
-        # Accept user input
+        # User input
         if prompt := st.chat_input("Ask about my skills, projects, or experience"):
-            # Add user message to chat history
+            # Add user message to history
             st.session_state.messages.append({"role": "user", "content": prompt})
-            # Display user message in chat message container
             with st.chat_message("user"):
                 st.markdown(prompt)
             
-            # Generate AI response based on the resume content
+            # Generate context
             context = """
             Smit Patel is a Mechanical Engineer with a minor in Computer Science from Nirma University (2021-25, CGPA 7.0).
             
@@ -405,28 +405,25 @@ elif section == "AI Chat":
             """
             
             try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant that answers questions about Smit Patel's professional profile based on the provided context. Keep answers concise and relevant."},
-                        {"role": "user", "content": f"Context: {context}\n\nQuestion: {prompt}"}
-                    ]
+                # Generate response using Gemini
+                response = st.session_state.gemini_model.generate_content(
+                    f"Context about Smit Patel:\n{context}\n\nUser Question: {prompt}\n\n"
+                    "Answer concisely in 1-3 sentences focusing only on relevant information from the context:"
                 )
-                ai_response = response.choices[0].message["content"]
+                ai_response = response.text
             except Exception as e:
                 ai_response = f"Sorry, I encountered an error: {str(e)}"
             
-            # Display assistant response in chat message container
+            # Display and store AI response
             with st.chat_message("assistant"):
                 st.markdown(ai_response)
-            # Add assistant response to chat history
             st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
 # Footer
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center;">
-    <p>© 2024 Smit Patel | Built with Streamlit</p>
+    <p>© 2024 Smit Patel | Built with Streamlit and Gemini AI</p>
     <p>Last updated: June 2024</p>
 </div>
 """, unsafe_allow_html=True)
