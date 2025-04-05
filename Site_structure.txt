@@ -1,0 +1,18 @@
+Smit_portfolio/
+├── app.py         # Main Flask application file
+├── templates/     # Directory to store HTML templates
+│   ├── base.html    # Base template for common elements
+│   ├── index.html   # Main portfolio page
+│   ├── about.html
+│   ├── background.html
+│   ├── skills.html
+│   ├── projects.html
+│   ├── experiences.html
+│   ├── certifications.html
+│   └── contact.html
+└── static/        # Directory for static files (CSS, JavaScript, images)
+    ├── css/
+    │   └── style.css
+    ├── js/
+    │   └── script.js
+    └── images/
